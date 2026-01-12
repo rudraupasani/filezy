@@ -1,26 +1,25 @@
-const { Server } = require("socket.io");
 const http = require("http");
+const { Server } = require("socket.io");
 
-const server = http.createServer((req, res) => {
-    res.writeHead(200, {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST",
-    });
-    res.end("Signaling Server Running");
-});
+// Create HTTP server (no manual headers)
+const server = http.createServer();
 
+// Create Socket.IO server
 const io = new Server(server, {
     cors: {
-        origin: "https://filezy.onrender.com",
+        origin: "*", // allow Vercel frontend
         methods: ["GET", "POST"],
     },
+    transports: ["polling", "websocket"], // important for Render cold start
 });
 
+// Store socket → room mapping
 const socketToRoom = {};
 
 io.on("connection", (socket) => {
     console.log("🔌 User connected:", socket.id);
 
+    // Join room
     socket.on("join-room", (roomId) => {
         socket.join(roomId);
         socketToRoom[socket.id] = roomId;
@@ -28,48 +27,53 @@ io.on("connection", (socket) => {
         const room = io.sockets.adapter.rooms.get(roomId);
         const users = room ? Array.from(room) : [];
 
-        // Filter out self
-        const otherUsers = users.filter((id) => id !== socket.id);
+        // Send existing users to new user
+        socket.emit(
+            "all-users",
+            users.filter((id) => id !== socket.id)
+        );
 
-        // Send list of existing users to the new joiner
-        socket.emit("all-users", otherUsers);
-
-        console.log(`👤 ${socket.id} joined room ${roomId}. Users: ${users.length}`);
+        console.log(`👤 ${socket.id} joined room ${roomId}`);
     });
 
-    socket.on("offer", (payload) => {
-        io.to(payload.target).emit("offer", {
-            sdp: payload.sdp,
-            callerId: socket.id
+    // WebRTC Offer
+    socket.on("offer", ({ target, sdp }) => {
+        io.to(target).emit("offer", {
+            sdp,
+            callerId: socket.id,
         });
     });
 
-    socket.on("answer", (payload) => {
-        io.to(payload.target).emit("answer", {
-            sdp: payload.sdp,
-            callerId: socket.id
+    // WebRTC Answer
+    socket.on("answer", ({ target, sdp }) => {
+        io.to(target).emit("answer", {
+            sdp,
+            callerId: socket.id,
         });
     });
 
-    socket.on("ice", (payload) => {
-        io.to(payload.target).emit("ice", {
-            candidate: payload.candidate,
-            callerId: socket.id
+    // ICE Candidate
+    socket.on("ice", ({ target, candidate }) => {
+        io.to(target).emit("ice", {
+            candidate,
+            callerId: socket.id,
         });
     });
 
+    // Disconnect
     socket.on("disconnect", () => {
         const roomId = socketToRoom[socket.id];
-        let room = io.sockets.adapter.rooms.get(roomId);
-        if (room) {
+        if (roomId) {
             socket.to(roomId).emit("user-left", socket.id);
+            delete socketToRoom[socket.id];
         }
-        delete socketToRoom[socket.id];
         console.log("❌ User disconnected:", socket.id);
     });
 });
 
-const PORT = 3001;
+// IMPORTANT: Use Render port
+const PORT = process.env.PORT || 3001;
+
 server.listen(PORT, () => {
-    console.log(`🚀 Signaling server running on http://localhost:${PORT}`);
+    console.log("🚀 Signaling server running on port", PORT);
 });

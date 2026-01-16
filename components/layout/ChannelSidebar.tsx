@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 interface ChannelSidebarProps {
-    server: Server | undefined;
+    server?: Server;
     channels: Channel[];
     activeChannel: string | null;
     previewChannel: string | null;
@@ -35,7 +35,6 @@ interface ChannelSidebarProps {
 }
 
 export default function ChannelSidebar({
-    server,
     channels,
     activeChannel,
     previewChannel,

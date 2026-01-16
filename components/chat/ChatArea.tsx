@@ -30,7 +30,7 @@ export default function ChatArea({ roomId, username }: ChatAreaProps) {
     return (
         <div className="flex flex-col h-full bg-[#313338] border-l border-[#26272d] w-80 shrink-0">
             <div className="h-12 border-b border-[#26272d] flex items-center px-4 font-bold shadow-sm">
-                Stream Chat
+             Chat
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>

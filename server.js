@@ -7,7 +7,7 @@ const server = http.createServer();
 // Create Socket.IO server
 const io = new Server(server, {
     cors: {
-        origin: "*", // allow Vercel frontend
+        origin: "*",
         methods: ["GET", "POST"],
     },
     transports: ["polling", "websocket"], // important for Render cold start
